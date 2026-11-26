@@ -18,7 +18,7 @@ A tiny macOS app for cleaning up a big Photos library, 100 pictures at a time.
 Requires macOS 14+ and the Xcode Command Line Tools (`xcode-select --install`).
 
 ```sh
-git clone <this repo>
+git clone https://github.com/imnitish-dev/PhotoSweep
 cd PhotoSweep
 ./build.sh
 open build/PhotoSweep.app
