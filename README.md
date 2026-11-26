@@ -13,26 +13,24 @@ A tiny macOS app for cleaning up a big Photos library, 100 pictures at a time.
 - Photos you keep are remembered and never shown again
 - Works with iCloud Photos, so deletions sync to your iPhone
 
-## Install
+## Install (macOS 14+)
 
-Requires macOS 14+ and the Xcode Command Line Tools (`xcode-select --install`).
+1. Download **PhotoSweep.dmg** from [Releases](https://github.com/imnitish-dev/PhotoSweep/releases/latest).
+2. Open it and drag **PhotoSweep** into **Applications**.
+3. Open PhotoSweep. macOS blocks it the first time because it isn't signed with an Apple Developer ID:
+   go to **System Settings → Privacy & Security**, scroll down, click **Open Anyway**.
+   (Or in Terminal: `xattr -dr com.apple.quarantine /Applications/PhotoSweep.app`)
+4. Allow **Full Access** when macOS asks for Photos permission.
+
+### Build from source
+
+Needs the Xcode Command Line Tools (`xcode-select --install`).
 
 ```sh
 git clone https://github.com/imnitish-dev/PhotoSweep
 cd PhotoSweep
-./build.sh
-open build/PhotoSweep.app
-```
-
-Allow **Full Access** when macOS asks for Photos permission.
-
-### Using a downloaded release instead
-
-The app isn't signed with an Apple Developer ID, so macOS will block it the first time.
-Right-click the app → **Open** → **Open**, or run:
-
-```sh
-xattr -dr com.apple.quarantine PhotoSweep.app
+./build.sh          # → build/PhotoSweep.app
+./build.sh dmg      # → also build/PhotoSweep.dmg
 ```
 
 ## Reset
