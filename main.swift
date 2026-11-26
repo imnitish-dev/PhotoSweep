@@ -18,7 +18,7 @@ final class Store: ObservableObject {
     @Published var marked = Set<String>()
     @Published var remaining = 0
     @Published var status = "Requesting access…"
-    @Published var preview: PHAsset?
+    @Published var viewing: Int?   // index in batch shown full-size
     let manager = PHCachingImageManager()
 
     // IDs you reviewed and kept: never shown again.
@@ -84,6 +84,20 @@ final class Store: ObservableObject {
     func toggle(_ a: PHAsset) {
         let id = a.localIdentifier
         if marked.contains(id) { marked.remove(id) } else { marked.insert(id) }
+    }
+
+    /// Full view: mark (or keep) the current photo and move to the next one.
+    func decide(delete: Bool) {
+        guard let i = viewing, batch.indices.contains(i) else { return }
+        let id = batch[i].localIdentifier
+        if delete { marked.insert(id) } else { marked.remove(id) }
+        step(1)
+    }
+
+    func step(_ d: Int) {
+        guard let i = viewing else { return }
+        let n = i + d
+        viewing = batch.indices.contains(n) ? n : nil   // past the last photo → back to grid
     }
 
     func markAll() { marked = Set(batch.map(\.localIdentifier)) }
@@ -163,10 +177,11 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: thumb), spacing: 6)], spacing: 6) {
-                        ForEach(store.batch, id: \.localIdentifier) { a in
+                        ForEach(Array(store.batch.enumerated()), id: \.element.localIdentifier) { i, a in
                             Thumb(asset: a, manager: store.manager, marked: store.marked.contains(a.localIdentifier), size: thumb)
-                                .onTapGesture { store.toggle(a) }
-                                .contextMenu { Button("Preview") { store.preview = a } }
+                                .onTapGesture {
+                                    if NSEvent.modifierFlags.contains(.command) { store.toggle(a) } else { store.viewing = i }
+                                }
                         }
                     }
                     .padding(8)
@@ -197,18 +212,67 @@ struct ContentView: View {
                 Menu("More") { Button("Show kept photos again (reset)") { store.resetKept() } }
             }
         }
-        .sheet(item: Binding(get: { store.preview.map { PreviewItem(asset: $0) } }, set: { store.preview = $0?.asset })) { p in
-            VStack {
-                Thumb(asset: p.asset, manager: store.manager, marked: false, size: 700)
-                Button("Close") { store.preview = nil }.keyboardShortcut(.cancelAction)
-            }.padding()
+        .overlay {
+            if let i = store.viewing, store.batch.indices.contains(i) {
+                FullView(store: store, index: i)
+            }
         }
         .frame(minWidth: 900, minHeight: 600)
         .onAppear { store.start() }
     }
 }
 
-struct PreviewItem: Identifiable { let asset: PHAsset; var id: String { asset.localIdentifier } }
+struct FullView: View {
+    @ObservedObject var store: Store
+    let index: Int
+    @State private var image: NSImage?
+    @FocusState private var focused: Bool
+
+    var asset: PHAsset { store.batch[index] }
+    var marked: Bool { store.marked.contains(asset.localIdentifier) }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.95).ignoresSafeArea()
+            if let image { Image(nsImage: image).resizable().scaledToFit().padding(40) }
+            else { ProgressView() }
+            VStack {
+                HStack {
+                    Text("\(index + 1) / \(store.batch.count)")
+                    if asset.mediaType == .video {
+                        Text("Video · " + Duration.seconds(asset.duration).formatted(.time(pattern: .minuteSecond)))
+                    }
+                    if let d = asset.creationDate { Text(d.formatted(date: .abbreviated, time: .omitted)) }
+                    Spacer()
+                    if marked { Label("Marked for delete", systemImage: "trash.fill").foregroundStyle(.red) }
+                }
+                .font(.headline).foregroundStyle(.white).padding()
+                Spacer()
+                Text("⌫ Delete    ␣ Space keep    ← → move    Esc close")
+                    .font(.callout).foregroundStyle(.white.opacity(0.7)).padding()
+            }
+        }
+        .focusable().focused($focused).focusEffectDisabled()
+        .onAppear { focused = true }
+        .onKeyPress(.delete) { store.decide(delete: true); return .handled }
+        .onKeyPress(.deleteForward) { store.decide(delete: true); return .handled }
+        .onKeyPress(.space) { store.decide(delete: false); return .handled }
+        .onKeyPress(.rightArrow) { store.step(1); return .handled }
+        .onKeyPress(.leftArrow) { store.step(-1); return .handled }
+        .onKeyPress(.escape) { store.viewing = nil; return .handled }
+        .onTapGesture { store.viewing = nil }
+        .task(id: asset.localIdentifier) {
+            image = nil
+            let o = PHImageRequestOptions()
+            o.isNetworkAccessAllowed = true
+            o.deliveryMode = .opportunistic
+            store.manager.requestImage(for: asset, targetSize: CGSize(width: 2400, height: 2400),
+                                       contentMode: .aspectFit, options: o) { img, _ in
+                if let img { image = img }
+            }
+        }
+    }
+}
 
 @main
 struct PhotoSweepApp: App {
