@@ -6,7 +6,7 @@ A=build/PhotoSweep.app
 mkdir -p "$A/Contents/MacOS"
 cp Info.plist "$A/Contents/Info.plist"
 swiftc -O -swift-version 5 -parse-as-library main.swift -o "$A/Contents/MacOS/PhotoSweep"
-codesign -s "${SIGN_ID:--}" --force "$A"   # SIGN_ID="Developer ID Application: ..." for a signed build
+codesign -s "${SIGN_ID:--}" --force --options runtime "$A"   # SIGN_ID="Developer ID Application: ..." for a signed build
 echo "Built $A — drag it to /Applications, or run: open $A"
 
 # ./build.sh dmg  → also package build/PhotoSweep.dmg (drag-to-Applications installer)

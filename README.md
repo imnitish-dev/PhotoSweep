@@ -33,6 +33,25 @@ cd PhotoSweep
 ./build.sh dmg      # → also build/PhotoSweep.dmg
 ```
 
+## Releasing a new version
+
+```sh
+./build.sh dmg
+gh release create v1.1 build/PhotoSweep.dmg --title "PhotoSweep 1.1" --notes "What changed"
+```
+
+### Why the "Open Anyway" step?
+
+The app is not notarized by Apple. Removing that step needs the paid
+[Apple Developer Program](https://developer.apple.com/programs/) ($99/year) for a
+**Developer ID Application** certificate, then:
+
+```sh
+SIGN_ID="Developer ID Application: Your Name (TEAMID)" ./build.sh dmg
+xcrun notarytool submit build/PhotoSweep.dmg --apple-id you@example.com --team-id TEAMID --wait
+xcrun stapler staple build/PhotoSweep.dmg
+```
+
 ## Reset
 
 "More → Show kept photos again" clears the kept list
